@@ -28,6 +28,11 @@ class OptimizationStats:
         return d
 
 def normalize_line(line: str) -> str:
+    # 1. 반복되는 긴 특수문자 구분선을 '---'로 단순화 (rtk식 구분선 압축)
+    line = re.sub(r"[-=*#~]{4,}", "---", line)
+    # 2. 마크다운 볼드 기호 중복 정리
+    line = re.sub(r"\*{4,}", "**", line)
+    # 3. 다중 탭 및 공백을 단일 공백으로 치환
     line = re.sub(r"[ \t]+", " ", line).strip()
     return line
 
@@ -44,12 +49,26 @@ def _line_score(line: str) -> int:
 
 def optimize_document(text: str, max_chars: int = 50000) -> tuple[str, OptimizationStats]:
     original_chars = len(text)
+    
+    # 4. 마크다운 주석 및 HTML 주석 제거 (rtk식 주석 필터링)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    
+    # 5. 들여쓰기 공백 정규화 (4칸 공백 -> 2칸 공백으로 압축하여 구조는 유지하되 토큰 세이빙)
+    lines_processed: list[str] = []
+    for raw in text.splitlines():
+        indent = re.match(r"^( +)", raw)
+        if indent:
+            spaces = len(indent.group(1))
+            compressed_spaces = " " * (spaces // 2)
+            raw = compressed_spaces + raw[spaces:]
+        lines_processed.append(raw)
+        
     seen: set[str] = set()
     unique_lines: list[str] = []
     removed_blank = 0
     removed_dup = 0
 
-    for raw in text.splitlines():
+    for raw in lines_processed:
         line = normalize_line(raw)
         if not line:
             removed_blank += 1
