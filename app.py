@@ -34,6 +34,31 @@ def get_tuftech_balance(api_key: str) -> dict:
     except Exception as e:
         return {"status": "error", "message": "네트워크 연결 불안정"}
 
+def calculate_estimated_cost(usage: dict, api_format: str) -> float:
+    if not usage:
+        return 0.0
+    if api_format == "anthropic":
+        # Claude 3.5 Sonnet 공식 단가 매핑
+        input_t = usage.get("input_tokens", 0)
+        output_t = usage.get("output_tokens", 0)
+        cache_read_t = usage.get("cache_read_input_tokens", 0)
+        cache_create_t = usage.get("cache_creation_input_tokens", 0)
+        
+        # 캐싱된 인풋 단가: Read ($0.30/MTok), Creation ($3.75/MTok), 일반 Input ($3.00/MTok), Output ($15.00/MTok)
+        cost = (
+            (input_t * 0.000003) + 
+            (output_t * 0.000015) + 
+            (cache_read_t * 0.00000030) + 
+            (cache_create_t * 0.00000375)
+        )
+        return cost
+    else:
+        # OpenAI GPT-4o 급 표준 단가 매핑 ($5.00/MTok Input, $15.00/MTok Output)
+        prompt_t = usage.get("prompt_tokens", 0)
+        completion_t = usage.get("completion_tokens", 0)
+        cost = (prompt_t * 0.000005) + (completion_t * 0.000015)
+        return cost
+
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 
@@ -257,6 +282,29 @@ if uploaded:
 
         if usage:
             st.json(usage)
+            
+            # 비용 및 잔고 대조 시각화
+            st.markdown("---")
+            st.subheader("💡 API 토큰 비용 및 크레딧 현황")
+            cost = calculate_estimated_cost(usage, api_format)
+            server_balance = get_tuftech_balance(api_key)
+            
+            c_cost, c_bal = st.columns(2)
+            c_cost.metric(
+                label="📉 이번 요청 산정사용량 (Estimated Cost)", 
+                value=f"${cost:.5f}",
+                help="이번 API 요청 시 사용된 토큰 수에 단가를 곱해 직접 계산한 추산 비용입니다."
+            )
+            if server_balance["status"] == "success":
+                c_bal.metric(
+                    label="💵 현재 실제 잔량 (Server Remaining)", 
+                    value=f"${server_balance['remaining']:.4f}",
+                    delta=f"실제 누적 충전: ${server_balance['total']:.0f} | 소모: ${server_balance['used']:.4f}",
+                    help="Tuftech API 서버에서 실시간 쿼리하여 가져온 실제 크레딧 잔량입니다."
+                )
+            else:
+                c_bal.warning(f"실제 잔량 조회 실패: {server_balance['message']}")
+            st.markdown("---")
 
         # 저장 결과 요약
         st.markdown(f"**결과 보고서 저장 경로:** `{res_path}` (해시: `{res_hash}`)")
