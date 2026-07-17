@@ -95,12 +95,12 @@ with st.sidebar:
         balance_info = get_tuftech_balance(env_key)
         if balance_info["status"] == "success":
             st.metric(
-                label="💵 남은 API 크레딧 잔액",
-                value=f"${balance_info['remaining']:.2f}",
-                delta=f"총 ${balance_info['total']:.0f} 중 ${balance_info['used']:.3f} 사용"
+                label="💵 TUFTech 잔량",
+                value=f"${balance_info['remaining']:.4f}",
+                delta=f"소모량: ${balance_info['used']:.4f} / 총 ${balance_info['total']:.0f}"
             )
         else:
-            st.caption(f"⚠️ 크레딧 조회 불가: {balance_info['message']}")
+            st.caption(f"⚠️ TUFTech 잔량 조회 불가: {balance_info['message']}")
 
     base_url = st.text_input("API 기본 주소 (Base URL)", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
     model_options = [
@@ -283,27 +283,40 @@ if uploaded:
         if usage:
             st.json(usage)
             
-            # 비용 및 잔고 대조 시각화
+            # 비용 및 잔고 대조 시각화 (사용자 요청 명칭 및 구조 정밀 반영)
             st.markdown("---")
-            st.subheader("💡 API 토큰 비용 및 크레딧 현황")
+            st.subheader("💡 API 비용 및 잔량 매칭")
+            
             cost = calculate_estimated_cost(usage, api_format)
             server_balance = get_tuftech_balance(api_key)
             
-            c_cost, c_bal = st.columns(2)
-            c_cost.metric(
-                label="📉 이번 요청 산정사용량 (Estimated Cost)", 
+            tuftech_actual = 0.0
+            if server_balance["status"] == "success":
+                tuftech_actual = server_balance["remaining"]
+            
+            # 현재 예측잔량 = (Tuftech 실제잔량 - 금회사용량)
+            predicted_rem = max(0.0, tuftech_actual - cost)
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric(
+                label="📉 금회사용량",
                 value=f"${cost:.5f}",
-                help="이번 API 요청 시 사용된 토큰 수에 단가를 곱해 직접 계산한 추산 비용입니다."
+                help="이번 문서 검토 시 사용된 모델 토큰 소모 가격입니다."
+            )
+            c2.metric(
+                label="🔮 현재 예측잔량",
+                value=f"${predicted_rem:.5f}",
+                help="실제 잔량에서 이번 소모 가격을 차감한 예측 잔액입니다."
             )
             if server_balance["status"] == "success":
-                c_bal.metric(
-                    label="💵 현재 실제 잔량 (Server Remaining)", 
-                    value=f"${server_balance['remaining']:.4f}",
-                    delta=f"실제 누적 충전: ${server_balance['total']:.0f} | 소모: ${server_balance['used']:.4f}",
-                    help="Tuftech API 서버에서 실시간 쿼리하여 가져온 실제 크레딧 잔량입니다."
+                c3.metric(
+                    label="💵 TUFTech 실제잔량",
+                    value=f"${tuftech_actual:.4f}",
+                    help="Tuftech API 서버에서 가져온 실제 잔량입니다."
                 )
             else:
-                c_bal.warning(f"실제 잔량 조회 실패: {server_balance['message']}")
+                c3.warning(f"TUFTech 실제잔량 조회 실패: {server_balance['message']}")
+                
             st.markdown("---")
 
         # 저장 결과 요약
