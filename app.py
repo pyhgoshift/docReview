@@ -38,7 +38,33 @@ artifact_manager = ArtifactManager(ROOT)
 with st.sidebar:
     st.header("API 설정")
     base_url = st.text_input("Base URL", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
-    model = st.text_input("모델명", os.getenv("TUFTECH_MODEL", ""))
+    model_options = [
+        "claude-sonnet-4-6 (Sonnet)",
+        "claude-fable-5 (Fable 5)",
+        "claude-opus-4-8 (Opus 4.8)",
+        "gpt-5-6 (GPT 5.6)",
+        "codex-cl (Codex CL)",
+        "직접 입력 (Custom)"
+    ]
+    env_model = os.getenv("TUFTECH_MODEL", "claude-sonnet-4-6")
+    default_index = 0
+    for i, opt in enumerate(model_options):
+        if opt.startswith(env_model):
+            default_index = i
+            break
+    else:
+        default_index = len(model_options) - 1
+
+    selected_model_opt = st.selectbox(
+        "모델 선택",
+        model_options,
+        index=default_index
+    )
+
+    if "직접 입력" in selected_model_opt:
+        model = st.text_input("모델명 직접 입력", value="" if env_model in ["claude-sonnet-4-6", "claude-fable-5", "claude-opus-4-8", "gpt-5-6", "codex-cl"] else env_model)
+    else:
+        model = selected_model_opt.split(" ")[0]
     api_format = st.selectbox(
         "API 형식",
         ["anthropic", "openai"],
