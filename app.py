@@ -102,15 +102,25 @@ with st.sidebar:
         else:
             st.caption(f"⚠️ TUFTech 잔량 조회 불가: {balance_info['message']}")
 
+    # 세션 상태 초기화
+    if "detected_models" not in st.session_state:
+        st.session_state["detected_models"] = []
+
     base_url = st.text_input("API 기본 주소 (Base URL)", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
-    model_options = [
-        "claude-sonnet-4-6 (Sonnet)",
-        "claude-fable-5 (Fable 5)",
-        "claude-opus-4-8 (Opus 4.8)",
-        "gpt-5-6 (GPT 5.6)",
-        "codex-cl (Codex CL)",
-        "직접 입력 (Custom)"
-    ]
+    
+    # 세션에 로드된 실제 제공 모델 목록이 있으면 우선 노출
+    if st.session_state["detected_models"]:
+        model_options = st.session_state["detected_models"] + ["직접 입력 (Custom)"]
+    else:
+        model_options = [
+            "claude-sonnet-4-6 (Sonnet)",
+            "claude-fable-5 (Fable 5)",
+            "claude-opus-4-8 (Opus 4.8)",
+            "gpt-5-6 (GPT 5.6)",
+            "codex-cl (Codex CL)",
+            "직접 입력 (Custom)"
+        ]
+        
     env_model = os.getenv("TUFTECH_MODEL", "claude-sonnet-4-6")
     default_index = 0
     for i, opt in enumerate(model_options):
@@ -164,6 +174,8 @@ with st.sidebar:
                 res = detector.detect_compatibility()
                 if res["status"] == "success":
                     st.success(f"탐지 성공: {res['api_format']} + {res['auth_mode']}")
+                    if "available_models" in res and res["available_models"]:
+                        st.session_state["detected_models"] = res["available_models"]
                     config_update = {
                         "TUFTECH_BASE_URL": base_url,
                         "TUFTECH_API_KEY": api_key,
@@ -172,8 +184,8 @@ with st.sidebar:
                         "TUFTECH_MODEL": res["recommended_model"]
                     }
                     GatewayDetector.update_env_file(Path(".env"), config_update)
-                    st.info("성공 설정이 `.env` 에 영속 저장되었습니다. F5를 눌러 새로고침 하시면 즉시 적용됩니다!")
-                    st.toast("API 규격 탐지 및 세팅 완료!", icon="✅")
+                    st.toast("API 규격 및 모델 리스트 로드 완료!", icon="✅")
+                    st.rerun()
                 else:
                     st.error(res["message"])
 
