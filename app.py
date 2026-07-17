@@ -247,8 +247,10 @@ if uploaded:
             st.error("판매자가 안내한 정확한 모델명을 입력하십시오.")
             st.stop()
 
+        import time
         prompt = build_prompt(optimized, facts, uploaded.name)
         with st.spinner("AI가 문서를 분석하고 있습니다..."):
+            start_time = time.time()
             try:
                 result, usage, cache_status = call_tuftech(
                     base_url=base_url,
@@ -260,6 +262,7 @@ if uploaded:
                     user_prompt=prompt,
                     enable_prompt_cache=ENABLE_PROMPT_CACHE,
                 )
+                duration = time.time() - start_time
                 # 성공 시 서킷 브레이커 실패 횟수 리셋
                 circuit_breaker.record_success()
             except (APIError, KeyError, ValueError, Exception) as exc:
@@ -272,13 +275,14 @@ if uploaded:
         # 분석 결과 로컬 디스크 저장
         res_path, res_hash = artifact_manager.save_result(uploaded.name, result)
 
-        st.success("분석이 완료되었습니다.")
+        st.success(f"분석이 완료되었습니다. (총 {duration:.1f}초 소요)")
         
         st.subheader("프롬프트 캐싱 상태")
-        ch1, ch2, ch3 = st.columns(3)
+        ch1, ch2, ch3, ch4 = st.columns(4)
         ch1.metric("캐시 요청 상태", "요청 완료" if cache_status["requested"] else "미요청")
         ch2.metric("캐시 적용 완료", "적용 성공" if cache_status["supported"] else "미지원")
         ch3.metric("우회 재시도 작동", "예(Fallback)" if cache_status["fallback_used"] else "아니오")
+        ch4.metric("분석 소요 시간", f"{duration:.1f}초")
 
         if usage:
             st.json(usage)
