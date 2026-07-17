@@ -2,10 +2,37 @@ from __future__ import annotations
 import json
 import os
 import sys
+import requests
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
+
+def get_tuftech_balance(api_key: str) -> dict:
+    if not api_key:
+        return {"status": "error", "message": "API 키를 입력해 주십시오."}
+    api_key = api_key.strip()
+    headers = {"Authorization": f"Bearer {api_key}"}
+    today = datetime.now().strftime("%Y-%m-%d")
+    url = f"https://api.tuftech.org/dashboard/billing/usage?start_date=2026-01-01&end_date={today}"
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            total = data.get("total_quota", 30000) / 100
+            used = data.get("total_usage", 0) / 100
+            remaining = total - used
+            return {
+                "status": "success",
+                "total": total,
+                "used": used,
+                "remaining": remaining
+            }
+        else:
+            return {"status": "error", "message": f"조회 실패 (HTTP {r.status_code})"}
+    except Exception as e:
+        return {"status": "error", "message": "네트워크 연결 불안정"}
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
@@ -37,6 +64,19 @@ artifact_manager = ArtifactManager(ROOT)
 
 with st.sidebar:
     st.header("API 설정")
+    
+    env_key = os.getenv("TUFTECH_API_KEY", "")
+    if env_key:
+        balance_info = get_tuftech_balance(env_key)
+        if balance_info["status"] == "success":
+            st.metric(
+                label="💵 남은 API 크레딧 잔액",
+                value=f"${balance_info['remaining']:.2f}",
+                delta=f"총 ${balance_info['total']:.0f} 중 ${balance_info['used']:.3f} 사용"
+            )
+        else:
+            st.caption(f"⚠️ 크레딧 조회 불가: {balance_info['message']}")
+
     base_url = st.text_input("API 기본 주소 (Base URL)", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
     model_options = [
         "claude-sonnet-4-6 (Sonnet)",
