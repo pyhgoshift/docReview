@@ -37,7 +37,7 @@ artifact_manager = ArtifactManager(ROOT)
 
 with st.sidebar:
     st.header("API 설정")
-    base_url = st.text_input("Base URL", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
+    base_url = st.text_input("API 기본 주소 (Base URL)", os.getenv("TUFTECH_BASE_URL", "https://api.tuftech.org"))
     model_options = [
         "claude-sonnet-4-6 (Sonnet)",
         "claude-fable-5 (Fable 5)",
@@ -56,7 +56,7 @@ with st.sidebar:
         default_index = len(model_options) - 1
 
     selected_model_opt = st.selectbox(
-        "모델 선택",
+        "분석 모델 선택",
         model_options,
         index=default_index
     )
@@ -66,19 +66,19 @@ with st.sidebar:
     else:
         model = selected_model_opt.split(" ")[0]
     api_format = st.selectbox(
-        "API 형식",
+        "API 프로토콜 규격",
         ["anthropic", "openai"],
         index=0 if os.getenv("TUFTECH_API_FORMAT", "anthropic") == "anthropic" else 1,
     )
     auth_mode = st.selectbox(
-        "인증 방식",
+        "인증 헤더 규격",
         ["bearer", "x-api-key"],
         index=0 if os.getenv("TUFTECH_AUTH_MODE", "bearer") == "bearer" else 1,
     )
     env_key = os.getenv("TUFTECH_API_KEY", "")
-    api_key = st.text_input("API 키", value=env_key, type="password")
+    api_key = st.text_input("API 인증 키", value=env_key, type="password")
     max_chars = st.number_input(
-        "API 전송 최대 문자 수",
+        "API 최대 입력 한도 (문자 수)",
         min_value=10000,
         max_value=200000,
         value=int(os.getenv("DOCREVIEW_MAX_INPUT_CHARS", "50000")),
@@ -184,12 +184,11 @@ if uploaded:
 
         st.success("분석이 완료되었습니다.")
         
-        # 캐시 상태 시각화
         st.subheader("프롬프트 캐싱 상태")
         ch1, ch2, ch3 = st.columns(3)
-        ch1.metric("캐시 요청 여부 (requested)", str(cache_status["requested"]))
-        ch2.metric("캐시 지원 여부 (supported)", str(cache_status["supported"]))
-        ch3.metric("비캐시 재시도 여부 (fallback_used)", str(cache_status["fallback_used"]))
+        ch1.metric("캐시 요청 상태", "요청 완료" if cache_status["requested"] else "미요청")
+        ch2.metric("캐시 적용 완료", "적용 성공" if cache_status["supported"] else "미지원")
+        ch3.metric("우회 재시도 작동", "예(Fallback)" if cache_status["fallback_used"] else "아니오")
 
         if usage:
             st.json(usage)
