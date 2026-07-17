@@ -31,6 +31,8 @@ def call_tuftech(
     enable_prompt_cache: bool = True,
     timeout: int = 180,
 ) -> tuple[dict, dict, dict]:
+    api_key = api_key.strip()
+    base_url = base_url.strip()
     base = base_url.rstrip("/")
     headers = {"Content-Type": "application/json"}
     if auth_mode == "bearer":
