@@ -269,7 +269,18 @@ if uploaded:
         with tabs[5]:
             st.dataframe(result.get("rewritten_examples", []), use_container_width=True)
         with tabs[6]:
-            st.json(result)
+            st.markdown("**원본 결과 보고서 (디스크 보관 정보)**")
+            st.markdown(f"- **보관 파일 경로:** `{res_path}`")
+            st.markdown(f"- **고유 식별 해시:** `{res_hash}`")
+            
+            # JSON 메타데이터 계산 (Preview)
+            key_count = len(result.keys())
+            char_count = len(json.dumps(result))
+            st.markdown(f"- **데이터 볼륨:** 총 {key_count}개의 최상위 객체 키 (약 {char_count:,} 글자)")
+            
+            # 명시적 로드 체크박스
+            if st.checkbox("원본 JSON 풀 버전 로드 (메모리 렌더링)", key="load_raw_json"):
+                st.json(result)
 
         st.download_button(
             "분석 결과 JSON 다운로드",
