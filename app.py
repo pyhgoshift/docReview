@@ -126,6 +126,31 @@ with st.sidebar:
         help="문서가 길면 중요 문장을 우선 선택하여 이 크기로 압축합니다.",
     )
     st.info("API 키는 화면에 표시되지 않습니다. `.env` 파일은 GitHub에 올리지 마십시오.")
+    
+    st.markdown("---")
+    st.subheader("자가 진단 도구")
+    if st.button("🔧 API 호환성 자동 탐지 시작", use_container_width=True):
+        if not api_key:
+            st.error("API 인증 키를 입력한 뒤 시도해 주십시오.")
+        else:
+            with st.spinner("API 규격 및 헤더 인증 방식을 탐색 중..."):
+                from docreview.detector import GatewayDetector
+                detector = GatewayDetector(base_url, api_key)
+                res = detector.detect_compatibility()
+                if res["status"] == "success":
+                    st.success(f"탐지 성공: {res['api_format']} + {res['auth_mode']}")
+                    config_update = {
+                        "TUFTECH_BASE_URL": base_url,
+                        "TUFTECH_API_KEY": api_key,
+                        "TUFTECH_API_FORMAT": res["api_format"],
+                        "TUFTECH_AUTH_MODE": res["auth_mode"],
+                        "TUFTECH_MODEL": res["recommended_model"]
+                    }
+                    GatewayDetector.update_env_file(Path(".env"), config_update)
+                    st.info("성공 설정이 `.env` 에 영속 저장되었습니다. F5를 눌러 새로고침 하시면 즉시 적용됩니다!")
+                    st.toast("API 규격 탐지 및 세팅 완료!", icon="✅")
+                else:
+                    st.error(res["message"])
 
 uploaded = st.file_uploader(
     "문서 한 개를 업로드하세요",
