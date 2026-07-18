@@ -110,14 +110,29 @@ with st.sidebar:
     
     # 세션에 로드된 실제 제공 모델 목록이 있으면 우선 노출
     if st.session_state["detected_models"]:
-        model_options = st.session_state["detected_models"] + ["직접 입력 (Custom)"]
+        raw_options = st.session_state["detected_models"]
+        model_options = []
+        for m in raw_options:
+            if m == "claude-haiku-4-5":
+                model_options.append("claude-haiku-4-5 (★가장 빠르고 가벼움)")
+            elif m == "claude-sonnet-4-6":
+                model_options.append("claude-sonnet-4-6 (현재 기본값 - 무겁고 정밀함)")
+            else:
+                model_options.append(m)
+        if "직접 입력 (Custom)" not in model_options:
+            model_options.append("직접 입력 (Custom)")
     else:
         model_options = [
-            "claude-sonnet-4-6 (Sonnet)",
-            "claude-fable-5 (Fable 5)",
-            "claude-opus-4-8 (Opus 4.8)",
-            "gpt-5-6 (GPT 5.6)",
-            "codex-cl (Codex CL)",
+            "claude-haiku-4-5 (★가장 빠르고 가벼움)",
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-6 (현재 기본값 - 무겁고 정밀함)",
+            "claude-sonnet-4-5-20250929",
+            "claude-sonnet-5",
+            "claude-opus-4-8",
+            "claude-opus-4-7",
+            "claude-opus-4-6",
+            "claude-opus-4-5-20251101",
+            "claude-fable-5",
             "직접 입력 (Custom)"
         ]
         
